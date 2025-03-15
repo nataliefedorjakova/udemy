@@ -24,6 +24,42 @@ npm install
 # Start the server
 node app.js
 
+#To clear all reservations and start with a clean slate, follow these intstructions:
+node
+
+const sqlite3 = require("sqlite3").verbose();
+
+const db = new sqlite3.Database("database.db");
+
+db.run("DELETE FROM reservations", function(err) {
+    if (err) {
+        console.error("Error clearing reservations:", err.message);
+    } else {
+        console.log("Table cleared");
+    }
+});
+
+.exit
+
+#Manually adding an admin user:
+node
+
+const bcrypt = require("bcrypt");
+
+const sqlite3 = require("sqlite3").verbose();
+
+const db = new sqlite3.Database("database.db");
+
+const hashedPassword = bcrypt.hashSync("adminpassword", 10);
+
+db.run("INSERT INTO users (username, password) VALUES (?, ?)", ["admin", hashedPassword], () => {
+    console.log("Admin user created");
+});
+
+
+```
+
+
 ## Future (ambitious) plans:
 - Using clock instead of picking your times manually
 - Testing edge cases

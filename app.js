@@ -383,7 +383,12 @@ app.listen(PORT, () => {
 });
 
 
-// issues:
-// 2. http://localhost:3000/reserve not css-ed
-// 3. invalid credentials
-// 4. after successful booking, post a message about it
+// TODO:
+// invalid credentials page
+// 404 page
+// put in other accounts
+
+
+// FIXME: 
+// center the divs
+

@@ -47,34 +47,9 @@ db.run("INSERT INTO users (username, password) VALUES (?, ?)", ["admin", hashedP
     console.log("Admin user created");
 });
 
-#Insert users into SQLite 
-## Generate hashed passwords 
-const bcrypt = require("bcrypt");
-const users = [
-    { username: "admin", password: "admin123" },
-    { username: "user1", password: "securepass" },
-    { username: "user2", password: "mypassword" }
-];
-const saltRounds = 10;
-users.forEach(user => {
-    bcrypt.hash(user.password, saltRounds, (err, hash) => {
-        if (err) {
-            console.error("Error hashing password:", err);
-        } else {
-            console.log(`INSERT INTO users (username, password) VALUES ('${user.username}', '${hash}');`);
-        }
-    });
-});
-
-
-##Insert users
-sqlite3 database.db
-INSERT INTO users (username, password) VALUES ('admin', '$2b$10$abcdefgh123456...');
-INSERT INTO users (username, password) VALUES ('user1', '$2b$10$ijklmnop123456...');
-INSERT INTO users (username, password) VALUES ('user2', '$2b$10$qrstuvwx123456...');
-SELECT id, username, password FROM users;
 ```
-
+#Insert new users
+Open up __insert_users.js__ and add a new user into const users array.
 
 ## Future (ambitious) plans:
 - Using clock instead of picking your times manually

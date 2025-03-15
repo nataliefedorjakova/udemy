@@ -1,0 +1,258 @@
+/* Minimalist Design - Professional Look */
+body {
+    font-family: "Arial", sans-serif;
+    background-color: #faf3dd;
+    color: #5e6472;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+}
+
+h1, h2 {
+    color: #5e6472;
+    text-align: center;
+}
+
+p {
+    font-size: 1.1em;
+    text-align: center;
+}
+
+a, button {
+    display: inline-block;
+    padding: 10px 20px;
+    margin: 10px;
+    font-size: 1em;
+    text-decoration: none;
+    color: white;
+    background-color: #aed9e0;
+    border: none;
+    border-radius: 5px;
+    transition: 0.3s;
+}
+
+a:hover, button:hover {
+    background-color: #b8f2e6;
+    cursor: pointer;
+}
+
+form {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    width: 300px;
+    text-align: center;
+}
+
+input, select {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #aed9e0;
+    border-radius: 5px;
+}
+
+button {
+    background-color: #ffa69e;
+}
+
+button:hover {
+    background-color: #ff8c86;
+}
+
+
+/* Centered Layout */
+.container {
+    width: 100%;
+    max-width: 400px;
+    margin: auto;
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+/* Labels & Inputs */
+label {
+    display: block;
+    margin-top: 15px;
+    font-weight: bold;
+    color: #5e6472;
+}
+
+input {
+    width: calc(100% - 20px);
+    padding: 10px;
+    margin: 5px 0 15px;
+    border: 1px solid #aed9e0;
+    border-radius: 5px;
+    font-size: 1em;
+}
+
+/* Submit Button */
+button {
+    background-color: #ffa69e;
+    color: white;
+    font-size: 1.1em;
+    padding: 12px;
+    border: none;
+    border-radius: 5px;
+    width: 100%;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+button:hover {
+    background-color: #ff8c86;
+}
+
+/* Link Button */
+a {
+    display: block;
+    margin-top: 15px;
+    color: #5e6472;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+a:hover {
+    color: #aed9e0;
+}
+
+/* Quick Reservation Section */
+form {
+    margin-bottom: 20px;
+}
+
+select {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #aed9e0;
+    border-radius: 5px;
+    font-size: 1em;
+}
+
+h2 {
+    border-bottom: 2px solid #aed9e0;
+    padding-bottom: 5px;
+    margin-bottom: 15px;
+    color: #5e6472;
+}
+
+/* Center Content */
+.container {
+    width: 100%;
+    max-width: 400px;
+    margin: auto;
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+/* Quick Reservation Title */
+h2 {
+    border-bottom: 2px solid #aed9e0;
+    padding-bottom: 5px;
+    margin-bottom: 15px;
+    color: #5e6472;
+}
+
+/* Dropdown Styling */
+select {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #aed9e0;
+    border-radius: 5px;
+    font-size: 1em;
+}
+
+/* Submit Button */
+button {
+    background-color: #ffa69e;
+    color: white;
+    font-size: 1.1em;
+    padding: 12px;
+    border: none;
+    border-radius: 5px;
+    width: 100%;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+button:hover {
+    background-color: #ff8c86;
+}
+
+/* Link Styling */
+a {
+    display: block;
+    margin-top: 15px;
+    color: #5e6472;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+a:hover {
+    color: #aed9e0;
+}
+
+
+/* Error Message Styling */
+.error-container {
+    width: 100%;
+    max-width: 450px;
+    margin: auto;
+    padding: 25px;
+    background: #ffa69e;
+    border-radius: 10px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    color: white;
+    font-family: "Arial", sans-serif;
+    margin-top: 50px;
+}
+
+.error-container h1 {
+    font-size: 1.5em;
+    margin-bottom: 10px;
+}
+
+.error-container p {
+    font-size: 1.1em;
+    margin-bottom: 15px;
+}
+
+.suggested-slot {
+    font-weight: bold;
+    color: #5e6472;
+    background: #faf3dd;
+    padding: 8px;
+    border-radius: 5px;
+    display: inline-block;
+}
+
+.error-container button {
+    background-color: #5e6472;
+    color: white;
+    font-size: 1em;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    width: 100%;
+    cursor: pointer;
+    transition: background 0.3s ease-in-out;
+}
+
+.error-container button:hover {
+    background-color: #aed9e0;
+}

@@ -12,7 +12,7 @@ A **private reservation system** for sharing a **single Udemy account** among te
 4. **Watch Udemy courses** without getting locked out mid-lesson.
 
 
-## Installation and basic workflow
+## Installation and Basic Workflow
 ```bash
 # Clone the repository
 git clone https://github.com/nataliefedorjakova/udemy.git
@@ -67,3 +67,5 @@ db.run("INSERT INTO users (username, password) VALUES (?, ?)", ["admin", hashedP
 - Formatting the page so it's not such an eyesore
 - Creating several accounts with own unique passwords
 - Adding information about who currently has the time slot booked
+- Fixing up Quick Reservation and Reservation pages
+

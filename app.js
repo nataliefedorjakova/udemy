@@ -34,7 +34,7 @@ app.get("/", (req, res) => {
             </head>
             <body>
                 <h1>Remote Access Status</h1>
-                <p>${reservation ? "🔴 In Use" : "🟢 Available"}</p>
+                <p>${reservation ? "🔴 Currently In Use" : "🟢 Available"}</p>
                 <a href='/reserve'>Book a Slot</a>
             </body>
             </html>
@@ -112,12 +112,16 @@ app.get("/reserve", auth, (req, res) => {
         </html>
     `);
 });
+
 app.post("/reserve", auth, (req, res) => {
     const startTime = new Date(req.body.start_time);
     const durationMinutes = parseInt(req.body.duration, 10) || 60; // Default = 60 minutes
-    const endTime = new Date(startTime.getTime() + durationMinutes * 60 * 1000);
+    // const endTime = new Date(startTime.getTime() + durationMinutes * 60 * 1000);
 
-    const formattedStartTime = startTime.toISOString().slice(0, 19).replace("T", " ");
+    const localStartTime = new Date(startTime.getTime() - startTime.getTimezoneOffset() * 60000);
+    const endTime = new Date(localStartTime.getTime() + durationMinutes * 60 * 1000);
+
+    const formattedStartTime = localStartTime.toISOString().slice(0, 19).replace("T", " ");
     const formattedEndTime = endTime.toISOString().slice(0, 19).replace("T", " ");
 
     db.get(
@@ -270,36 +274,38 @@ app.post("/quick-reserve", auth, (req, res) => {
 });
 
 
-app.post("/reserve", auth, (req, res) => {
-    const startTime = new Date(req.body.start_time);
-    const durationMinutes = parseInt(req.body.duration, 10) || 60; // Default = 60 minutes
-    const endTime = new Date(startTime.getTime() + durationMinutes * 60 * 1000);
+// app.post("/reserve", auth, (req, res) => {
+//     const startTime = new Date(req.body.start_time);
+//     const durationMinutes = parseInt(req.body.duration, 10) || 60; // Default = 60 minutes
+//     const endTime = new Date(startTime.getTime() + durationMinutes * 60 * 1000);
 
-    const formattedStartTime = startTime.toISOString().slice(0, 19).replace("T", " ");
-    const formattedEndTime = endTime.toISOString().slice(0, 19).replace("T", " ");
+//     const formattedStartTime = startTime.toISOString().replace("T", " ").slice(0, 19);
+//     const formattedEndTime = endTime.toISOString().replace("T", " ").slice(0, 19);
 
-    db.get(
-        "SELECT * FROM reservations WHERE NOT (end_time <= ? OR start_time >= ?)",
-        [formattedStartTime, formattedEndTime],
-        (err, existing) => {
-            console.log("Checking conflict for:", formattedStartTime, "to", formattedEndTime);
-            console.log("Existing conflicting reservation:", existing);
-
-            if (existing) {
-                return res.send("Time slot already booked! Please choose a different time.");
-            }
-
-            db.run(
-                "INSERT INTO reservations (user_id, start_time, end_time) VALUES (?, ?, ?)",
-                [req.session.userId, formattedStartTime, formattedEndTime],
-                () => {
-                    console.log("Reservation confirmed:", formattedStartTime, "to", formattedEndTime);
-                    res.redirect("/");
-                }
-            );
-        }
-    );
-});
+//     db.get(
+//         "SELECT * FROM reservations WHERE start_time < ? AND end_time >= ?",
+//         [formattedEndTime, formattedStartTime],
+//         (err, existing) => {
+//             console.log("Checking conflicts...");
+//             console.log("Requested Start:", formattedStartTime);
+//             console.log("Requested End:", formattedEndTime);
+//             if (existing) {
+//                 console.log("Conflict found; existing reservation:");
+//                 console.log(existing);
+//                 return res.send("Time slot already booked! Please choose a different time.");
+//             }
+//             console.log("No conflicts. Proceeding with booking...");
+//             db.run(
+//                 "INSERT INTO reservations (user_id, start_time, end_time) VALUES (?, ?, ?)",
+//                 [req.session.userId, formattedStartTime, formattedEndTime],
+//                 () => {
+//                     console.log("Reservation confirmed:", formattedStartTime, "to", formattedEndTime);
+//                     res.redirect("/");
+//                 }
+//             );
+//         }
+//     );
+// });
 
 
 // app.post("/reserve", auth, (req, res) => {
@@ -320,16 +326,23 @@ app.listen(PORT, () => {
         if (err) {
             console.error("Error fetching reservations:", err.message);
         } else {
-            console.log("📅 Current Reservations:");
+            console.log("Current Reservations:");
             if (rows.length === 0) {
                 console.log("No reservations found.");
             } else {
                 rows.forEach((reservation) => {
                     console.log(
-                        `🔹 ID: ${reservation.id}, User: ${reservation.user_id}, Start: ${reservation.start_time}, End: ${reservation.end_time}`
+                        `ID: ${reservation.id}, User: ${reservation.user_id}, Start: ${reservation.start_time}, End: ${reservation.end_time}`
                     );
                 });
             }
         }
     });
 });
+
+
+// issues:
+// 1. a time slot supposedly available 1 min after the last booking spot is not showing up as available. yet it is suggested as the next available slot
+// 2. http://localhost:3000/reserve not css-ed
+// 3. invalid credentials
+// 4. after successful booking, post a message about it

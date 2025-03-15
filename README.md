@@ -12,7 +12,7 @@ A **private reservation system** for sharing a **single Udemy account** among te
 4. **Watch Udemy courses** without getting locked out mid-lesson.
 
 
-## Installation
+## Installation and basic workflow
 ```bash
 # Clone the repository
 git clone https://github.com/nataliefedorjakova/udemy.git

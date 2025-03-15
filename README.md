@@ -48,7 +48,7 @@ db.run("INSERT INTO users (username, password) VALUES (?, ?)", ["admin", hashedP
 });
 
 ```
-#Insert new users
+## Insert new users
 Open up __insert_users.js__ and add a new user into const users array.
 
 ## Future (ambitious) plans:

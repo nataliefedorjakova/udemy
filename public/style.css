@@ -256,3 +256,93 @@ a:hover {
 .error-container button:hover {
     background-color: #aed9e0;
 }
+
+
+/* Quick Reservation Styling */
+.quick-container {
+    width: 100%;
+    max-width: 450px;
+    margin: auto;
+    padding: 25px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    font-family: "Arial", sans-serif;
+    margin-top: 50px;
+}
+
+.quick-container h1 {
+    font-size: 1.8em;
+    color: #5e6472;
+    margin-bottom: 15px;
+}
+
+.quick-container p {
+    font-size: 1.2em;
+    color: #5e6472;
+    margin-bottom: 20px;
+}
+
+.quick-container form {
+    background: #faf3dd;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    text-align: center;
+}
+
+.quick-container label {
+    font-size: 1.1em;
+    font-weight: bold;
+    color: #5e6472;
+    display: block;
+    margin-bottom: 10px;
+}
+
+.quick-container select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #aed9e0;
+    border-radius: 5px;
+    font-size: 1em;
+    margin-bottom: 20px;
+    background-color: #fff;
+    color: #5e6472;
+}
+
+.quick-container button {
+    background-color: #ffa69e;
+    color: white;
+    font-size: 1.1em;
+    padding: 12px;
+    border: none;
+    border-radius: 5px;
+    width: 100%;
+    cursor: pointer;
+    transition: background 0.3s ease-in-out;
+}
+
+.quick-container button:hover {
+    background-color: #ff8c86;
+}
+
+.quick-container a {
+    display: block;
+    margin-top: 20px;
+    font-size: 1.1em;
+    color: #5e6472;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.quick-container a:hover {
+    color: #aed9e0;
+}
+
+/* Fancy Icons */
+.fas {
+    margin-right: 8px;
+    color: #5e6472;
+}

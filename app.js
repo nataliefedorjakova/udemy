@@ -34,7 +34,7 @@ app.get("/", (req, res) => {
             </head>
             <body>
                 <h1>Remote Access Status</h1>
-                <p>${reservation ? "🔴 Currently In Use" : "🟢 Available"}</p>
+                <p>${reservation ? "🔴 Currently In Use" : "🟢 Currently Available"}</p>
                 <a href='/reserve'>Book a Slot</a>
             </body>
             </html>
@@ -76,14 +76,15 @@ app.get("/reserve", auth, (req, res) => {
         <html>
         <head>
             <link rel="stylesheet" type="text/css" href="/style.css">
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
         </head>
         <body>
             <div class="container">
                 <h2>Book a Slot</h2>
                 <div class="form-box">
                     <form method="POST" action="/reserve">
-                        <label for="start_time">Start Time:</label>
-                        <input type="datetime-local" id="start_time" name="start_time" required>
+                        <label for="start_time">Select Start Time:</label>
+                        <input type="text" id="start_time" name="start_time" required>
 
                         <label for="duration">Duration (in minutes):</label>
                         <input type="number" id="duration" name="duration" min="1" max="240" value="60" required> 
@@ -97,9 +98,12 @@ app.get("/reserve", auth, (req, res) => {
                     <form method="POST" action="/quick-reserve">
                         <label for="quick_duration">Duration (in minutes):</label>
                         <select id="quick_duration" name="quick_duration">
-                            <option value="15">15 min</option>
-                            <option value="30" selected>30 min</option>
+                            <option value="15">15 minutes</option>
+                            <option value="30">30 minutes</option>
                             <option value="60">1 hour</option>
+                            <option value="120">2 hours</option>
+                            <option value="180">3 hours</option>
+                            <option value="240">4 hours</option>
                         </select>
 
                         <button type="submit">Book Now</button>
@@ -108,6 +112,16 @@ app.get("/reserve", auth, (req, res) => {
 
                 <a href="/" class="back-button">Back to Homepage</a>
             </div>
+
+            <!-- Flatpickr Library -->
+            <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+            <script>
+                flatpickr("#start_time", {
+                    enableTime: true,
+                    dateFormat: "Y-m-d H:i:S",
+                    defaultDate: new Date(),
+                });
+            </script>
         </body>
         </html>
     `);
@@ -160,53 +174,81 @@ app.post("/reserve", auth, (req, res) => {
                 db.run(
                     "INSERT INTO reservations (user_id, start_time, end_time) VALUES (?, ?, ?)",
                     [req.session.userId, formattedStartTime, formattedEndTime],
-                    () => {
-                        console.log("Reservation confirmed:", formattedStartTime, "to", formattedEndTime);
-                        res.redirect("/");
+                    function () {
+                        console.log("✅ Reservation Confirmed:", formattedStartTime, "to", formattedEndTime);
+                
+                        res.send(`
+                            <html>
+                            <head>
+                                <link rel="stylesheet" type="text/css" href="/style.css">
+                            </head>
+                            <body>
+                                <h2>Booking Successful!</h2>
+                                <p>Your reservation is confirmed:</p>
+                                <p><strong>Start:</strong> ${formattedStartTime}</p>
+                                <p><strong>End:</strong> ${formattedEndTime}</p>
+                                <a href="/">Back to Homepage</a>
+                            </body>
+                            </html>
+                        `);
                     }
                 );
             }
         }
     );
 });
-
 app.get("/quick-reserve", auth, (req, res) => {
-    res.send(`
-        <html>
-        <head>
-            <link rel="stylesheet" type="text/css" href="/style.css">
-        </head>
-        <body>
-            <div class="quick-container">
-                <h1>Quick Reservation</h1>
-                <p>Need a quick booking? Select a duration and book instantly!</p>
+    db.get(
+        "SELECT * FROM reservations WHERE start_time <= datetime('now') AND end_time >= datetime('now')",
+        (err, activeReservation) => {
+            let pageContent = `
+                <html>
+                <head>
+                    <link rel="stylesheet" type="text/css" href="/style.css">
+                    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+                </head>
+                <body>
+                    <div class="quick-container">
+                        <h1><i class="fas fa-clock"></i> Quick Reservation</h1>`;
 
-                <form method="POST" action="/quick-reserve">
-                    <label for="quick_duration">Choose Duration:</label>
-                    <select id="quick_duration" name="quick_duration">
-                        <option value="15">15 minutes</option>
-                        <option value="30" selected>30 minutes</option>
-                        <option value="60">1 hour</option>
-                        <option value="120">2 hours</option>
-                        <option value="180">3 hours</option>
-                        <option value="240">4 hours</option>
-                    </select>
+            if (activeReservation) {
+                pageContent += `
+                    <p><i class="fas fa-times-circle"></i> The system is currently in use!</p>
+                    <p>Please check back later or try booking for a later time.</p>
+                    <a href="/" class="back-button"><i class="fas fa-home"></i> Back to Homepage</a>
+                `;
+            } else {
+                pageContent += `
+                    <p>Need a quick booking? Select a duration and book instantly!</p>
+                    <form method="POST" action="/quick-reserve">
+                        <label for="quick_duration"><i class="fas fa-hourglass-half"></i> Choose Duration:</label>
+                        <select id="quick_duration" name="quick_duration">
+                            <option value="15">15 minutes</option>
+                            <option value="30">30 minutes</option>
+                            <option value="60">1 hour</option>
+                            <option value="120">2 hours</option>
+                            <option value="180">3 hours</option>
+                            <option value="240">4 hours</option>
+                        </select>
+                        <button type="submit"><i class="fas fa-check-circle"></i> Book Instantly</button>
+                    </form>
+                    <a href="/" class="back-button"><i class="fas fa-home"></i> Back to Homepage</a>
+                `;
+            }
 
-                    <button type="submit">Book Instantly</button>
-                </form>
-
-                <a href="/">Back to Homepage</a>
-            </div>
-        </body>
-        </html>
-    `);
+            pageContent += `</div></body></html>`;
+            res.send(pageContent);
+        }
+    );
 });
+
+
 
 
 
 app.post("/quick-reserve", auth, (req, res) => {
     const startTime = new Date();
-    const durationMinutes = parseInt(req.body.quick_duration, 10) || 30;
+    const durationMinutes = parseInt(req.body.quick_duration, 10) || 60; // Default to 1 hour if not set
     const endTime = new Date(startTime.getTime() + durationMinutes * 60 * 1000);
 
     const formattedStartTime = startTime.toISOString().slice(0, 19).replace("T", " ");
@@ -342,7 +384,6 @@ app.listen(PORT, () => {
 
 
 // issues:
-// 1. a time slot supposedly available 1 min after the last booking spot is not showing up as available. yet it is suggested as the next available slot
 // 2. http://localhost:3000/reserve not css-ed
 // 3. invalid credentials
 // 4. after successful booking, post a message about it

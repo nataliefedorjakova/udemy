@@ -1,8 +1,7 @@
 const express = require("express");
 const sqlite3 = require("sqlite3").verbose();
 const bodyParser = require("body-parser");
-const session = require("express-session");
-const bcrypt = require("bcrypt");
+const cookieParser = require("cookie-parser"); 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -12,66 +11,70 @@ const db = new sqlite3.Database("database.db", (err) => {
 });
 
 db.serialize(() => {
-    db.run("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, username TEXT UNIQUE, password TEXT)");
-    db.run("CREATE TABLE IF NOT EXISTS reservations (id INTEGER PRIMARY KEY, user_id INTEGER, start_time TEXT, end_time TEXT, FOREIGN KEY(user_id) REFERENCES users(id))");
+    db.run("CREATE TABLE IF NOT EXISTS reservations (id INTEGER PRIMARY KEY, user_name TEXT, start_time TEXT, end_time TEXT)");
 });
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
-app.use(session({ secret: "secret-key", resave: false, saveUninitialized: true }));
-
-const auth = (req, res, next) => {
-    if (!req.session.userId) return res.redirect("/login");
-    next();
-};
+app.use(cookieParser());
 
 app.get("/", (req, res) => {
-    db.get("SELECT * FROM reservations WHERE start_time <= datetime('now') AND end_time >= datetime('now')", (err, reservation) => {
-        res.send(`
-            <html>
-            <head>
-                <link rel="stylesheet" type="text/css" href="/style.css">
-            </head>
-            <body>
-                <h1>Remote Access Status</h1>
-                <p>${reservation ? "🔴 Currently In Use" : "🟢 Currently Available"}</p>
-                <a href='/reserve'>Book a Slot</a>
-            </body>
-            </html>
-        `);
-    });
+    if (!req.cookies.username) {
+        return res.redirect("/welcome");
+    }
+    res.redirect("/home");
 });
 
-app.get("/login", (req, res) => {
+app.get("/welcome", (req, res) => {
     res.send(`
         <html>
         <head>
             <link rel="stylesheet" type="text/css" href="/style.css">
         </head>
         <body>
-            <h2>Login</h2>
-            <form method="POST" action="/login">
-                <input type="text" name="username" placeholder="Username" required>
-                <input type="password" name="password" placeholder="Password" required>
-                <button type="submit">Login</button>
-            </form>
+            <div class="container">
+                <h2>Welcome! Enter Your Name</h2>
+                <form method="POST" action="/set-name">
+                    <input type="text" name="username" placeholder="Enter your name" required>
+                    <button type="submit">Continue</button>
+                </form>
+            </div>
         </body>
         </html>
     `);
 });
 
-app.post("/login", (req, res) => {
-    const { username, password } = req.body;
-    db.get("SELECT * FROM users WHERE username = ?", [username], (err, user) => {
-        if (user && bcrypt.compareSync(password, user.password)) {
-            req.session.userId = user.id;
-            return res.redirect("/reserve");
-        }
-        res.send("Invalid credentials");
+app.post("/set-name", (req, res) => {
+    const username = req.body.username.trim();
+    if (!username) {
+        return res.redirect("/welcome");
+    }
+    res.cookie("username", username, { maxAge: 30 * 24 * 60 * 60 * 1000 });
+    res.redirect("/home");
+});
+
+app.get("/home", (req, res) => {
+    const username = req.cookies.username || "Guest";
+    db.get("SELECT user_name FROM reservations WHERE start_time <= datetime('now') AND end_time >= datetime('now')", (err, reservation) => {
+        res.send(`
+            <html>
+            <head>
+                <link rel="stylesheet" type="text/css" href="/style.css">
+            </head>
+            <body>
+                <h1>Welcome, ${username}!</h1>
+                <h2>Remote Access Status</h2>
+                <p>${reservation ? `🔴 Currently in Use by ${reservation.user_name}` : "🟢 Currently Available"}</p>
+                <a href='/reserve'>Book a Slot</a> | 
+                <a href="/logout">Change Name</a>
+            </body>
+            </html>
+        `);
     });
 });
 
-app.get("/reserve", auth, (req, res) => {
+app.get("/reserve", (req, res) => {
+    const username = req.cookies.username || "Guest";
     res.send(`
         <html>
         <head>
@@ -80,19 +83,9 @@ app.get("/reserve", auth, (req, res) => {
         </head>
         <body>
             <div class="container">
-                <h2>Book a Slot</h2>
-                <div class="form-box">
-                    <form method="POST" action="/reserve">
-                        <label for="start_time">Select Start Time:</label>
-                        <input type="text" id="start_time" name="start_time" required>
+                <h2>Hello, ${username}! Ready to book?</h2>
 
-                        <label for="duration">Duration (in minutes):</label>
-                        <input type="number" id="duration" name="duration" min="1" max="240" value="60" required> 
-
-                        <button type="submit">Reserve Now</button>
-                    </form>
-                </div>
-
+                <!-- Quick Reservation First -->
                 <h2>Quick Reservation</h2>
                 <div class="form-box">
                     <form method="POST" action="/quick-reserve">
@@ -105,123 +98,67 @@ app.get("/reserve", auth, (req, res) => {
                             <option value="180">3 hours</option>
                             <option value="240">4 hours</option>
                         </select>
-
                         <button type="submit">Book Now</button>
                     </form>
                 </div>
 
-                <a href="/" class="back-button">Back to Homepage</a>
-            </div>
+                <!-- Normal Booking Below -->
+                <h2>Book a Custom Slot</h2>
+                <div class="form-box">
+                    <form method="POST" action="/reserve">
+                        <input type="hidden" name="username" value="${username}">
+                        <label for="start_time">Select Start Time:</label>
+                        <input type="text" id="start_time" name="start_time" required>
 
-            <!-- Flatpickr Library -->
-            <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-            <script>
-                flatpickr("#start_time", {
-                    enableTime: true,
-                    dateFormat: "Y-m-d H:i:S",
-                    defaultDate: new Date(),
-                });
-            </script>
+                        <label for="duration">Duration (in minutes):</label>
+                        <input type="number" id="duration" name="duration" min="1" max="240" value="60" required> 
+
+                        <button type="submit">Reserve Now</button>
+                    </form>
+                </div>
+
+                <a href="/home">Back to Home</a>
+
+                <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+                <script>
+                    flatpickr("#start_time", {
+                        enableTime: true,
+                        dateFormat: "Y-m-d H:i:S",
+                        defaultDate: new Date(),
+                    });
+                </script>
+            </div>
         </body>
         </html>
     `);
 });
 
-app.post("/reserve", auth, (req, res) => {
-    const startTime = new Date(req.body.start_time);
-    const durationMinutes = parseInt(req.body.duration, 10) || 60; // Default = 60 minutes
-    // const endTime = new Date(startTime.getTime() + durationMinutes * 60 * 1000);
-
-    const localStartTime = new Date(startTime.getTime() - startTime.getTimezoneOffset() * 60000);
-    const endTime = new Date(localStartTime.getTime() + durationMinutes * 60 * 1000);
-
-    const formattedStartTime = localStartTime.toISOString().slice(0, 19).replace("T", " ");
-    const formattedEndTime = endTime.toISOString().slice(0, 19).replace("T", " ");
-
+app.get("/quick-reserve", (req, res) => {
+    const username = req.cookies.username || "Guest";
     db.get(
-        "SELECT * FROM reservations WHERE NOT (end_time <= ? OR start_time >= ?)",
-        [formattedStartTime, formattedEndTime],
-        (err, existing) => {
-            if (existing) {
-                console.log("Slot already booked, searching for next available slot...");
-
-                // Find the next available slot after the conflicting reservation
-                db.get(
-                    "SELECT end_time FROM reservations WHERE end_time > ? ORDER BY end_time ASC LIMIT 1",
-                    [formattedEndTime],
-                    (err, nextAvailable) => {
-                        let suggestedStart = new Date(endTime);
-
-                        if (nextAvailable) {
-                            suggestedStart = new Date(nextAvailable.end_time);
-                        }
-
-                        let suggestedEnd = new Date(suggestedStart.getTime() + durationMinutes * 60 * 1000);
-
-                        const suggestedStartTime = suggestedStart.toISOString().slice(0, 19).replace("T", " ");
-                        const suggestedEndTime = suggestedEnd.toISOString().slice(0, 19).replace("T", " ");
-
-                        return res.send(`
-                            <h2>Time slot already booked!</h2>
-                            <p>Please choose a different time.</p>
-                            <h3>🔎 Suggested Next Available Slot:</h3>
-                            <p>${suggestedStartTime} to ${suggestedEndTime}</p>
-                            <button onclick="window.location.href='/reserve'">🔙 Try Again</button>
-                        `);
-                    }
-                );
-            } else {
-                db.run(
-                    "INSERT INTO reservations (user_id, start_time, end_time) VALUES (?, ?, ?)",
-                    [req.session.userId, formattedStartTime, formattedEndTime],
-                    function () {
-                        console.log("✅ Reservation Confirmed:", formattedStartTime, "to", formattedEndTime);
-                
-                        res.send(`
-                            <html>
-                            <head>
-                                <link rel="stylesheet" type="text/css" href="/style.css">
-                            </head>
-                            <body>
-                                <h2>Booking Successful!</h2>
-                                <p>Your reservation is confirmed:</p>
-                                <p><strong>Start:</strong> ${formattedStartTime}</p>
-                                <p><strong>End:</strong> ${formattedEndTime}</p>
-                                <a href="/">Back to Homepage</a>
-                            </body>
-                            </html>
-                        `);
-                    }
-                );
-            }
-        }
-    );
-});
-app.get("/quick-reserve", auth, (req, res) => {
-    db.get(
-        "SELECT * FROM reservations WHERE start_time <= datetime('now') AND end_time >= datetime('now')",
+        "SELECT user_name FROM reservations WHERE start_time <= datetime('now') AND end_time >= datetime('now')",
         (err, activeReservation) => {
             let pageContent = `
                 <html>
                 <head>
                     <link rel="stylesheet" type="text/css" href="/style.css">
-                    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
                 </head>
                 <body>
                     <div class="quick-container">
-                        <h1><i class="fas fa-clock"></i> Quick Reservation</h1>`;
+                        <h1>Quick Reservation</h1>`;
 
             if (activeReservation) {
                 pageContent += `
-                    <p><i class="fas fa-times-circle"></i> The system is currently in use!</p>
-                    <p>Please check back later or try booking for a later time.</p>
-                    <a href="/" class="back-button"><i class="fas fa-home"></i> Back to Homepage</a>
+                    <p>The system is currently in use by <strong>${activeReservation.user_name}</strong>.</p>
+                    <p>Please try booking for a later time.</p>
+                    <a href="/home">Back to Homepage</a>
                 `;
             } else {
                 pageContent += `
                     <p>Need a quick booking? Select a duration and book instantly!</p>
                     <form method="POST" action="/quick-reserve">
-                        <label for="quick_duration"><i class="fas fa-hourglass-half"></i> Choose Duration:</label>
+                        <input type="hidden" name="username" value="${username}">
+                        <label for="quick_duration">Choose Duration:</label>
                         <select id="quick_duration" name="quick_duration">
                             <option value="15">15 minutes</option>
                             <option value="30">30 minutes</option>
@@ -230,9 +167,9 @@ app.get("/quick-reserve", auth, (req, res) => {
                             <option value="180">3 hours</option>
                             <option value="240">4 hours</option>
                         </select>
-                        <button type="submit"><i class="fas fa-check-circle"></i> Book Instantly</button>
+                        <button type="submit">Book Now</button>
                     </form>
-                    <a href="/" class="back-button"><i class="fas fa-home"></i> Back to Homepage</a>
+                    <a href="/home">Back to Homepage</a>
                 `;
             }
 
@@ -242,128 +179,179 @@ app.get("/quick-reserve", auth, (req, res) => {
     );
 });
 
+app.post("/quick-reserve", (req, res) => {
+    console.log("Received Quick Reservation Request:", req.body);
 
-
-
-
-app.post("/quick-reserve", auth, (req, res) => {
+    const username = req.cookies.username || "Guest";
     const startTime = new Date();
-    const durationMinutes = parseInt(req.body.quick_duration, 10) || 60; // Default to 1 hour if not set
+    const durationMinutes = parseInt(req.body.quick_duration, 10) || 30;
     const endTime = new Date(startTime.getTime() + durationMinutes * 60 * 1000);
 
-    const formattedStartTime = startTime.toISOString().slice(0, 19).replace("T", " ");
-    const formattedEndTime = endTime.toISOString().slice(0, 19).replace("T", " ");
+    const formattedStartTime = startTime.toISOString();
+    const formattedEndTime = endTime.toISOString();
 
-    db.get(
-        "SELECT * FROM reservations WHERE NOT (end_time <= ? OR start_time >= ?)",
-        [formattedStartTime, formattedEndTime],
-        (err, existing) => {
-            if (existing) {
-                console.log("Quick Booking Conflict! Looking for next available slot...");
+    console.log(`Trying to book from ${formattedStartTime} (UTC) to ${formattedEndTime} (UTC)`);
 
-                db.get(
-                    "SELECT end_time FROM reservations WHERE end_time > ? ORDER BY end_time ASC LIMIT 1",
-                    [formattedEndTime],
-                    (err, nextAvailable) => {
-                        let suggestedStart = new Date(endTime);
-
-                        if (nextAvailable) {
-                            suggestedStart = new Date(nextAvailable.end_time);
-                        }
-
-                        let suggestedEnd = new Date(suggestedStart.getTime() + durationMinutes * 60 * 1000);
-
-                        const suggestedStartTime = suggestedStart.toISOString().slice(0, 19).replace("T", " ");
-                        const suggestedEndTime = suggestedEnd.toISOString().slice(0, 19).replace("T", " ");
-
-                        return res.send(`
-                            <html>
-                            <head>
-                                <link rel="stylesheet" type="text/css" href="/style.css">
-                            </head>
-                            <body>
-                                <div class="error-container">
-                                    <h1>Quick Booking Failed - Time Slot Taken</h1>
-                                    <p>Your selected time is already booked.</p>
-                        
-                                    <h3>Suggested Next Available Slot:</h3>
-                                    <p class="suggested-slot">${suggestedStartTime} to ${suggestedEndTime}</p>
-                        
-                                    <button onclick="window.location.href='/quick-reserve'">Try Again</button>
-                                </div>
-                            </body>
-                            </html>
-                        `);
-                    }
-                );
-            } else {
-                db.run(
-                    "INSERT INTO reservations (user_id, start_time, end_time) VALUES (?, ?, ?)",
-                    [req.session.userId, formattedStartTime, formattedEndTime],
-                    function () {
-                        console.log(`Quick Reservation confirmed: User ${req.session.userId} from ${formattedStartTime} to ${formattedEndTime}`);
-
-                        res.send(`
-                            <h2>Quick Booking Successful!</h2>
-                            <p>Your reservation is confirmed from ${formattedStartTime} to ${formattedEndTime}.</p>
-                            <button onclick="window.location.href='/'">Go to Homepage</button>
-                        `);
-                    }
-                );
+    db.all(
+        "SELECT start_time, end_time FROM reservations WHERE end_time > datetime('now') ORDER BY start_time ASC",
+        (err, reservations) => {
+            if (err) {
+                console.error("Database error:", err.message);
+                return res.status(500).send("Internal Server Error");
             }
+
+            console.log("Existing Reservations:");
+            reservations.forEach((r, i) => {
+                console.log(`${i + 1}. Start: ${r.start_time} (DB Time), End: ${r.end_time} (DB Time)`);
+            });
+
+            let nextAvailableSlot = new Date(); 
+            let latestEndTime = new Date(0); 
+
+            for (let i = 0; i < reservations.length; i++) {
+                let currentStart = new Date(Date.parse(reservations[i].start_time + "Z")); 
+                let currentEnd = new Date(Date.parse(reservations[i].end_time + "Z")); 
+
+                console.log(`Checking reservation ${i + 1}: Start ${currentStart.toISOString()} (UTC), End ${currentEnd.toISOString()} (UTC)`);
+
+                if (nextAvailableSlot < currentStart) {
+                    console.log(`Next available slot: ${nextAvailableSlot.toISOString()} (UTC)`);
+                    break;
+                }
+
+                if (currentEnd > latestEndTime) {
+                    latestEndTime = currentEnd;
+                    console.log(`Updating latest end time to: ${latestEndTime.toISOString()} (UTC)`);
+                }
+
+                nextAvailableSlot = new Date(latestEndTime.getTime() + 1 * 60 * 1000);
+                console.log(`Moving next available slot to: ${nextAvailableSlot.toISOString()} (UTC)`);
+            }
+
+            // Convert to local time for display
+            let localNextSlot = new Date(nextAvailableSlot);
+            let formattedNextSlot = localNextSlot.toLocaleString("en-US", { timeZone: "Europe/Prague" });
+
+            console.log(`Final next available slot (Local Time): ${formattedNextSlot}`);
+
+            return res.send(`
+                <html>
+                <head>
+                    <link rel="stylesheet" type="text/css" href="/style.css">
+                </head>
+                <body>
+                    <div class="error-container">
+                        <h1>Quick Booking Failed - Time Slot Taken</h1>
+                        <p>The next available slot is:</p>
+                        <p class="suggested-slot"><strong>${formattedNextSlot}</strong></p>
+                        <a href="/quick-reserve" class="back-button">Try Again</a>
+                    </div>
+                </body>
+                </html>
+            `);
         }
     );
 });
 
 
-// app.post("/reserve", auth, (req, res) => {
-//     const startTime = new Date(req.body.start_time);
-//     const durationMinutes = parseInt(req.body.duration, 10) || 60; // Default = 60 minutes
-//     const endTime = new Date(startTime.getTime() + durationMinutes * 60 * 1000);
+app.post("/reserve", (req, res) => {
+    console.log("Received Reservation Request:", req.body);
 
-//     const formattedStartTime = startTime.toISOString().replace("T", " ").slice(0, 19);
-//     const formattedEndTime = endTime.toISOString().replace("T", " ").slice(0, 19);
+    const username = req.cookies.username || "Guest";
+    const startTime = new Date(Date.parse(req.body.start_time + "Z")); 
+    const durationMinutes = parseInt(req.body.duration, 10) || 60;
+    const endTime = new Date(startTime.getTime() + durationMinutes * 60 * 1000);
 
-//     db.get(
-//         "SELECT * FROM reservations WHERE start_time < ? AND end_time >= ?",
-//         [formattedEndTime, formattedStartTime],
-//         (err, existing) => {
-//             console.log("Checking conflicts...");
-//             console.log("Requested Start:", formattedStartTime);
-//             console.log("Requested End:", formattedEndTime);
-//             if (existing) {
-//                 console.log("Conflict found; existing reservation:");
-//                 console.log(existing);
-//                 return res.send("Time slot already booked! Please choose a different time.");
-//             }
-//             console.log("No conflicts. Proceeding with booking...");
-//             db.run(
-//                 "INSERT INTO reservations (user_id, start_time, end_time) VALUES (?, ?, ?)",
-//                 [req.session.userId, formattedStartTime, formattedEndTime],
-//                 () => {
-//                     console.log("Reservation confirmed:", formattedStartTime, "to", formattedEndTime);
-//                     res.redirect("/");
-//                 }
-//             );
-//         }
-//     );
-// });
+    const formattedStartTime = startTime.toISOString();
+    const formattedEndTime = endTime.toISOString();
+
+    console.log(`Trying to book from ${formattedStartTime} (UTC) to ${formattedEndTime} (UTC)`);
+
+    db.all(
+        "SELECT start_time, end_time FROM reservations WHERE end_time > datetime('now') ORDER BY start_time ASC",
+        (err, reservations) => {
+            if (err) {
+                console.error("Database error:", err.message);
+                return res.status(500).send("Internal Server Error");
+            }
+
+            console.log("Existing Reservations:");
+            reservations.forEach((r, i) => {
+                console.log(`${i + 1}. Start: ${r.start_time} (DB Time), End: ${r.end_time} (DB Time)`);
+            });
+
+            let nextAvailableSlot = new Date();
+            let latestEndTime = new Date(0);
+
+            for (let i = 0; i < reservations.length; i++) {
+                let currentStart = new Date(Date.parse(reservations[i].start_time + "Z"));
+                let currentEnd = new Date(Date.parse(reservations[i].end_time + "Z"));
+
+                console.log(`Checking reservation ${i + 1}: Start ${currentStart.toISOString()} (UTC), End ${currentEnd.toISOString()} (UTC)`);
+
+                if (nextAvailableSlot < currentStart) {
+                    console.log(`Next available slot: ${nextAvailableSlot.toISOString()} (UTC)`);
+                    break;
+                }
+
+                if (currentEnd > latestEndTime) {
+                    latestEndTime = currentEnd;
+                    console.log(`Updating latest end time to: ${latestEndTime.toISOString()} (UTC)`);
+                }
+
+                nextAvailableSlot = new Date(latestEndTime.getTime() + 1 * 60 * 1000);
+                console.log(`Moving next available slot to: ${nextAvailableSlot.toISOString()} (UTC)`);
+            }
+
+            let localNextSlot = new Date(nextAvailableSlot);
+            let formattedNextSlot = localNextSlot.toLocaleString("en-US", { timeZone: "Europe/Prague" });
+
+            console.log(`Final next available slot (Local Time): ${formattedNextSlot}`);
+
+            return res.send(`
+                <html>
+                <head>
+                    <link rel="stylesheet" type="text/css" href="/style.css">
+                </head>
+                <body>
+                    <div class="error-container">
+                        <h1>Time Slot Already Booked!</h1>
+                        <p>The next available slot is:</p>
+                        <p class="suggested-slot"><strong>${formattedNextSlot}</strong></p>
+                        <a href="/reserve" class="back-button">Try Again</a>
+                    </div>
+                </body>
+                </html>
+            `);
+        }
+    );
+});
 
 
-// app.post("/reserve", auth, (req, res) => {
-//     const startTime = req.body.start_time;
-//     const endTime = new Date(new Date(startTime).getTime() + 60 * 60 * 1000).toISOString().slice(0, 19).replace("T", " ");
-//     db.get("SELECT * FROM reservations WHERE start_time <= ? AND end_time >= ?", [endTime, startTime], (err, existing) => {
-//         if (existing) return res.send("Time slot already booked");
-//         db.run("INSERT INTO reservations (user_id, start_time, end_time) VALUES (?, ?, ?)", [req.session.userId, startTime, endTime], () => {
-//             res.redirect("/");
-//         });
-//     });
-// });
+app.get("/logout", (req, res) => {
+    res.clearCookie("username");
+    res.redirect("/welcome");
+});
+
+app.use((req, res) => {
+    res.status(404).send(`
+        <html>
+        <head>
+            <link rel="stylesheet" type="text/css" href="/style.css">
+        </head>
+        <body>
+            <div class="error-container">
+                <h1>404 - Page Not Found</h1>
+                <p>Oops! The page you are looking for does not exist.</p>
+                <a href="/home" class="back-button">Return to Homepage</a>
+            </div>
+        </body>
+        </html>
+    `);
+});
 
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
-
     db.all("SELECT * FROM reservations", (err, rows) => {
         if (err) {
             console.error("Error fetching reservations:", err.message);
@@ -381,14 +369,4 @@ app.listen(PORT, () => {
         }
     });
 });
-
-
-// TODO:
-// invalid credentials page
-// 404 page
-// put in other accounts
-
-
-// FIXME: 
-// center the divs
 

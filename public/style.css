@@ -1,4 +1,4 @@
-/* Minimalist Design - Professional Look */
+
 body {
     font-family: "Arial", sans-serif;
     background-color: #faf3dd;
@@ -76,6 +76,10 @@ button:hover {
     border-radius: 8px;
     box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
     text-align: center;
+    
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 /* Labels & Inputs */
@@ -93,9 +97,10 @@ input {
     border: 1px solid #aed9e0;
     border-radius: 5px;
     font-size: 1em;
+    background-color: #f5eed6;
+    
 }
 
-/* Submit Button */
 button {
     background-color: #ffa69e;
     color: white;
@@ -128,6 +133,7 @@ a:hover {
 /* Quick Reservation Section */
 form {
     margin-bottom: 20px;
+    
 }
 
 select {
@@ -207,7 +213,6 @@ a:hover {
 }
 
 
-/* Error Message Styling */
 .error-container {
     width: 100%;
     max-width: 450px;
@@ -258,7 +263,6 @@ a:hover {
 }
 
 
-/* Quick Reservation Styling */
 .quick-container {
     width: 100%;
     max-width: 450px;
@@ -291,6 +295,10 @@ a:hover {
     box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
     width: 100%;
     text-align: center;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .quick-container label {
@@ -346,3 +354,202 @@ a:hover {
     margin-right: 8px;
     color: #5e6472;
 }
+
+/* Ensure full viewport centering */
+body {
+    font-family: "Arial", sans-serif;
+    background-color: #faf3dd;
+    display: flex;
+    justify-content: center; /* Centers horizontally */
+    align-items: center; /* Centers vertically */
+    height: 100vh; /* Makes sure it takes the full height */
+    margin: 0;
+}
+
+/* Ensure container is centered */
+.container {
+    width: 90%;
+    max-width: 450px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* Centers content inside */
+
+    /* display: flex;
+    justify-content: center;
+    align-items: center; */
+}
+
+h2 {
+    border-bottom: 2px solid #aed9e0;
+    padding-bottom: 5px;
+    margin-bottom: 15px;
+    color: #5e6472;
+}
+
+.form-box, .quick-container form {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Centers content */
+}
+
+.form-box {
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+    padding: 15px;
+    margin: 15px auto;
+    width: 100%;
+    max-width: 350px;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+input, select {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #aed9e0;
+    border-radius: 5px;
+    font-size: 1em;
+    background-color: #faf3dd;
+    color: #5e6472;
+}
+
+button {
+    background-color: #ffa69e;
+    color: white;
+    font-size: 1.1em;
+    padding: 12px;
+    border: none;
+    border-radius: 5px;
+    width: 100%;
+    cursor: pointer;
+    transition: background 0.3s ease-in-out;
+    display: block;
+    margin: 10px auto; /* Centers horizontally */
+    text-align: center;
+}
+
+button:hover {
+    background-color: #ff8c86;
+}
+
+.back-button {
+    background-color: #aed9e0;
+    color: #5e6472;
+    font-size: 1em;
+    padding: 12px;
+    border: none;
+    border-radius: 5px;
+    width: 100%;
+    display: block;
+    margin-top: 10px;
+    cursor: pointer;
+    text-decoration: none;
+    text-align: center;
+    /* max-width: fit-content; */
+    display: grid;
+    place-content: center;
+    width: 70%;
+}
+
+.back-button:hover {
+    background-color: #b8f2e6;
+
+}
+
+.error-container {
+    width: 90%;
+    max-width: 500px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+    padding: 25px;
+    text-align: center;
+    font-family: "Arial", sans-serif;
+}
+
+.error-container h1 {
+    font-size: 1.8em;
+    color: #461414;
+    margin-bottom: 15px;
+}
+
+.error-container p {
+    font-size: 1.2em;
+    margin-bottom: 20px;
+    color: #5e6472;
+}
+
+.back-button {
+    background-color: #aed9e0;
+    color: #5e6472;
+    font-size: 1.1em;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    width: 80%;
+    display: inline-block;
+    text-decoration: none;
+    text-align: center;
+    font-weight: bold;
+    transition: background 0.3s ease-in-out, transform 0.2s ease-in-out;
+}
+
+.back-button:hover {
+    background-color: #8ee0ec;
+    color: #383b42;
+    transform: translateY(-2px);
+}
+
+.error-container {
+    width: 90%;
+    max-width: 450px;
+    margin: auto;
+    padding: 25px;
+    background: #ffa69e;
+    border-radius: 10px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    color: white;
+    font-family: "Arial", sans-serif;
+    margin-top: 50px;
+}
+
+.error-container h1 {
+    font-size: 1.8em;
+    margin-bottom: 10px;
+}
+
+.error-container p {
+    font-size: 1.2em;
+    margin-bottom: 15px;
+}
+
+.back-button {
+    background-color: #aed9e0;
+    color: #5e6472;
+    font-size: 1.1em;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    width: 80%;
+    display: inline-block;
+    text-decoration: none;
+    text-align: center;
+    font-weight: bold;
+    transition: background 0.3s ease-in-out, transform 0.2s ease-in-out;
+}
+
+.back-button:hover {
+    background-color: #b8f2e6;
+    transform: translateY(-2px);
+}
+

@@ -1,15 +1,17 @@
 # Udemy Reservation Sharing Tool
 
-A **private reservation system** for sharing a **single Udemy account** among team members without getting flagged for "suspicious activity." 
+A **private** reservation system for a single Udemy account... if you ever feel like reserving it only for 
+Scenario: you have an account that allows only one person to use it. Well, as it would never occur to you to share it among, dunno, team members of your elite work team, you can book a slot whenever you (and only you!) feel like using it. Just for funsies.
+
 ## Features
 - **Book a Time Slot** 
 - **Prevents Overlapping Reservations** 
 
 ## How It Works
-1. **Log in** with your credentials.
+1. **Log in** with your username.
 2. **Pick a time slot**.
-3. **Book your reservation** and enjoy exclusive, uninterrupted access.
-4. **Watch Udemy courses** without getting locked out mid-lesson.
+3. **Book your reservation** either well in advance or via quick-booking (which books it for right now).
+4. **Watch courses** without getting locked out mid-lesson (hopefully).
 
 
 ## Installation and Basic Workflow
@@ -37,26 +39,7 @@ db.run("DELETE FROM reservations", function(err) {
 });
 .exit
 
-#Manually adding an admin user:
-node
-const bcrypt = require("bcrypt");
-const sqlite3 = require("sqlite3").verbose();
-const db = new sqlite3.Database("database.db");
-const hashedPassword = bcrypt.hashSync("adminpassword", 10);
-db.run("INSERT INTO users (username, password) VALUES (?, ?)", ["admin", hashedPassword], () => {
-    console.log("Admin user created");
-});
 
-```
-## Insert new users
-Open up __insert_users.js__ and add a new user into const users array.
 
-## Future (ambitious) plans:
-- Using clock instead of picking your times manually
-- Testing edge cases
-- Accessing the account using virtual remote desktop
-- Formatting the page so it's not such an eyesore
-- Creating several accounts with own unique passwords
-- Adding information about who currently has the time slot booked
-- Fixing up Quick Reservation and Reservation pages
+
 

@@ -3,7 +3,9 @@ const sqlite3 = require("sqlite3").verbose();
 const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser"); 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || "8080";
+const { DateTime } = require("luxon");
+
 
 const db = new sqlite3.Database("database.db", (err) => {
     if (err) console.error(err.message);
@@ -11,7 +13,12 @@ const db = new sqlite3.Database("database.db", (err) => {
 });
 
 db.serialize(() => {
-    db.run("CREATE TABLE IF NOT EXISTS reservations (id INTEGER PRIMARY KEY, user_name TEXT, start_time TEXT, end_time TEXT)");
+    db.run(`CREATE TABLE IF NOT EXISTS reservations (
+        id INTEGER PRIMARY KEY,
+        user_name TEXT,
+        start_time TEXT DEFAULT (DATETIME('now', 'utc')),
+        end_time TEXT
+    )`);
 });
 
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -58,23 +65,32 @@ app.post("/set-name", (req, res) => {
 
 app.get("/home", (req, res) => {
     const username = req.cookies.username || "Guest";
-    db.get("SELECT user_name FROM reservations WHERE start_time <= datetime('now') AND end_time >= datetime('now')", (err, reservation) => {
+    // Get current local time in Europe/Prague
+    let nowLocal = DateTime.local().setZone("Europe/Prague").toFormat("yyyy-MM-dd HH:mm:ss");
+    db.get(
+      "SELECT user_name FROM reservations WHERE start_time <= ? AND end_time >= ?",
+      [nowLocal, nowLocal],
+      (err, reservation) => {
         res.send(`
-            <html>
+          <html>
             <head>
-                <link rel="stylesheet" type="text/css" href="/style.css">
+              <link rel="stylesheet" type="text/css" href="/style.css">
             </head>
             <body>
-                <h1>Welcome, ${username}!</h1>
-                <h2>Remote Access Status</h2>
-                <p>${reservation ? `🔴 Currently in Use by ${reservation.user_name}` : "🟢 Currently Available"}</p>
-                <a href='/reserve'>Book a Slot</a> | 
-                <a href="/logout">Change Name</a>
+              <h1>Welcome, ${username}!</h1>
+              <h2>Remote Access Status</h2>
+              <p>${reservation ? `🔴 Currently in Use by ${reservation.user_name}` : "🟢 Currently Available"}</p>
+              <a href='/reserve'>Book a Slot</a> | 
+              <a href="/logout">Change Name</a>
             </body>
-            </html>
+          </html>
         `);
-    });
-});
+      }
+    );
+  });
+  
+  
+  
 
 app.get("/reserve", (req, res) => {
     const username = req.cookies.username || "Guest";
@@ -136,185 +152,6 @@ app.get("/reserve", (req, res) => {
     `);
 });
 
-// app.post("/quick-reserve", (req, res) => {
-//     console.log("🔵 Received Quick Reservation Request:", req.body);
-
-//     const username = req.cookies.username || "Guest";
-//     const startTime = new Date(); // Quick reservations always start *now*
-//     const durationMinutes = parseInt(req.body.quick_duration, 10) || 30;
-//     const endTime = new Date(startTime.getTime() + durationMinutes * 60 * 1000);
-
-//     const formattedStartTime = startTime.toISOString().slice(0, 19).replace("T", " ");
-//     const formattedEndTime = endTime.toISOString().slice(0, 19).replace("T", " ");
-
-//     console.log(`Trying to book from ${formattedStartTime} (UTC) to ${formattedEndTime} (UTC)`);
-
-//     db.all(
-//         "SELECT start_time, end_time FROM reservations ORDER BY start_time ASC",
-//         (err, reservations) => {
-//             if (err) {
-//                 console.error("Database error:", err.message);
-//                 return res.status(500).send("Internal Server Error");
-//             }
-
-//             console.log("Existing Reservations in Database:");
-//             if (reservations.length === 0) {
-//                 console.log("No existing reservations. Proceeding with quick booking.");
-//             } else {
-//                 reservations.forEach((r, i) => {
-//                     console.log(`${i + 1}. Start: ${r.start_time} (DB Time), End: ${r.end_time} (DB Time)`);
-//                 });
-//             }
-
-//             let hasConflict = false;
-
-//             console.log(" Checking for conflicts...");
-//             for (let i = 0; i < reservations.length; i++) {
-//                 let currentStart = new Date(reservations[i].start_time + "Z");
-//                 let currentEnd = new Date(reservations[i].end_time + "Z");
-
-//                 console.log(`   Comparing against Reservation ${i + 1}:`);
-//                 console.log(`   Start: ${currentStart.toISOString()} (UTC)`);
-//                 console.log(`   End: ${currentEnd.toISOString()} (UTC)`);
-
-//                 if (startTime.getTime() < currentEnd.getTime() && endTime.getTime() > currentStart.getTime()) {
-//                     console.log(`   Overlap detected with Reservation ${i + 1}!`);
-//                     hasConflict = true;
-//                     break;
-//                 }
-//             }
-
-//             if (hasConflict) {
-//                 let latestEndTime = new Date(reservations[reservations.length - 1].end_time);
-//                 let nextAvailableSlot = new Date(latestEndTime.getTime() + 1 * 60 * 1000);
-//                 let formattedNextSlot = nextAvailableSlot.toLocaleString("en-US", { timeZone: "Europe/Prague" });
-
-//                 console.log(`    Final next available slot (Local Time): ${formattedNextSlot}`);
-
-//                 return res.send(`
-//                     <html>
-//                     <head>
-//                         <link rel="stylesheet" type="text/css" href="/style.css">
-//                     </head>
-//                     <body>
-//                         <div class="error-container">
-//                             <h1>Quick Booking Failed - Time Slot Taken!</h1>
-//                             <p>Sorry, this time is already taken.</p>
-//                             <p>The next available slot is:</p>
-//                             <p class="suggested-slot"><strong>${formattedNextSlot}</strong></p>
-//                             <a href="/quick-reserve" class="back-button">Try Again</a>
-//                         </div>
-//                     </body>
-//                     </html>
-//                 `);
-//             }
-
-//             // No conflicts → Proceed with quick reservation
-//             console.log(`No conflicts. Proceeding with quick booking.`);
-
-//             db.run(
-//                 "INSERT INTO reservations (user_name, start_time, end_time) VALUES (?, ?, ?)",
-//                 [username, formattedStartTime, formattedEndTime],
-//                 function () {
-//                     console.log(`Quick Reservation confirmed: ${username}, ${formattedStartTime} to ${formattedEndTime}`);
-
-//                     res.send(`
-//                         <html>
-//                         <head>
-//                             <link rel="stylesheet" type="text/css" href="/style.css">
-//                         </head>
-//                         <body>
-//                             <div class="confirmation-container">
-//                                 <h1>Quick Booking Successful!</h1>
-//                                 <p>Your quick reservation is confirmed:</p>
-//                                 <p><strong>Start:</strong> ${formattedStartTime}</p>
-//                                 <p><strong>End:</strong> ${formattedEndTime}</p>
-//                                 <a href="/home" class="back-button">Back to Homepage</a>
-//                             </div>
-//                         </body>
-//                         </html>
-//                     `);
-//                 }
-//             );
-//         }
-//     );
-// });
-
-
-// app.post("/quick-reserve", (req, res) => {
-//     console.log("Received Quick Reservation Request:", req.body);
-
-//     const username = req.cookies.username || "Guest";
-//     const startTime = new Date(req.body.start_time);
-//     const durationMinutes = parseInt(req.body.quick_duration, 10) || 30;
-//     const endTime = new Date(startTime.getTime() + durationMinutes * 60 * 1000);
-
-//     const formattedStartTime = startTime.toISOString();
-//     const formattedEndTime = endTime.toISOString();
-
-//     console.log(`Trying to book from ${formattedStartTime} (UTC) to ${formattedEndTime} (UTC)`);
-
-//     db.all(
-//         "SELECT start_time, end_time FROM reservations WHERE end_time > datetime('now') ORDER BY start_time ASC",
-//         (err, reservations) => {
-//             if (err) {
-//                 console.error("Database error:", err.message);
-//                 return res.status(500).send("Internal Server Error");
-//             }
-
-//             console.log("Existing Reservations:");
-//             reservations.forEach((r, i) => {
-//                 console.log(`${i + 1}. Start: ${r.start_time} (DB Time), End: ${r.end_time} (DB Time)`);
-//             });
-
-//             let nextAvailableSlot = new Date(); 
-//             let latestEndTime = new Date(0); 
-
-//             for (let i = 0; i < reservations.length; i++) {
-//                 let currentStart = new Date(Date.parse(reservations[i].start_time + "Z")); 
-//                 let currentEnd = new Date(Date.parse(reservations[i].end_time + "Z")); 
-
-//                 console.log(`Checking reservation ${i + 1}: Start ${currentStart.toISOString()} (UTC), End ${currentEnd.toISOString()} (UTC)`);
-
-//                 if (nextAvailableSlot < currentStart) {
-//                     console.log(`Next available slot: ${nextAvailableSlot.toISOString()} (UTC)`);
-//                     break;
-//                 }
-
-//                 if (currentEnd > latestEndTime) {
-//                     latestEndTime = currentEnd;
-//                     console.log(`Updating latest end time to: ${latestEndTime.toISOString()} (UTC)`);
-//                 }
-
-//                 nextAvailableSlot = new Date(latestEndTime.getTime() + 1 * 60 * 1000);
-//                 console.log(`Moving next available slot to: ${nextAvailableSlot.toISOString()} (UTC)`);
-//             }
-
-//             // Convert to local time for display
-//             let localNextSlot = new Date(nextAvailableSlot);
-//             let formattedNextSlot = localNextSlot.toLocaleString("en-US", { timeZone: "Europe/Prague" });
-
-//             console.log(`Final next available slot (Local Time): ${formattedNextSlot}`);
-
-//             return res.send(`
-//                 <html>
-//                 <head>
-//                     <link rel="stylesheet" type="text/css" href="/style.css">
-//                 </head>
-//                 <body>
-//                     <div class="error-container">
-//                         <h1>Quick Booking Failed - Time Slot Taken</h1>
-//                         <p>The next available slot is:</p>
-//                         <p class="suggested-slot"><strong>${formattedNextSlot}</strong></p>
-//                         <a href="/quick-reserve" class="back-button">Try Again</a>
-//                     </div>
-//                 </body>
-//                 </html>
-//             `);
-//         }
-//     );
-// });
-
 app.get("/quick-reserve", (req, res) => {
     const username = req.cookies.username || "Guest";
     db.get(
@@ -366,224 +203,215 @@ app.get("/quick-reserve", (req, res) => {
 });
 
 app.post("/quick-reserve", (req, res) => {
+    // Use Luxon for all date–time handling.
+    // (Assuming you have already done: const { DateTime } = require("luxon"); at the top)
     console.log("🔵 Received Quick Reservation Request:", req.body);
-
+    
     const username = req.cookies.username || "Guest";
-    const startTime = new Date(); // Quick reservations always start *now*
+    
+    // For a quick reservation, start time is "now" in the Europe/Prague zone.
+    let localDT = DateTime.local().setZone("Europe/Prague");
+    console.log("🕒 Local DateTime for Quick Reserve:", localDT.toString());
+    
+    // Get the duration from the form (in minutes)
     const durationMinutes = parseInt(req.body.quick_duration, 10) || 30;
-    const endTime = new Date(startTime.getTime() + durationMinutes * 60 * 1000);
-
-    const formattedStartTime = startTime.toISOString().slice(0, 19).replace("T", " ");
-    const formattedEndTime = endTime.toISOString().slice(0, 19).replace("T", " ");
-
-    console.log(`Trying to book from ${formattedStartTime} (UTC) to ${formattedEndTime} (UTC)`);
-
-    db.all(
-        "SELECT start_time, end_time FROM reservations ORDER BY start_time ASC",
-        (err, reservations) => {
-            if (err) {
-                console.error("Database error:", err.message);
-                return res.status(500).send("Internal Server Error");
-            }
-
-            console.log("Existing Reservations in Database:");
-            if (reservations.length === 0) {
-                console.log("No existing reservations. Proceeding with quick booking.");
-            } else {
-                reservations.forEach((r, i) => {
-                    console.log(`${i + 1}. Start: ${r.start_time} (DB Time), End: ${r.end_time} (DB Time)`);
-                });
-            }
-
-            let hasConflict = false;
-
-            console.log(" Checking for conflicts...");
-            for (let i = 0; i < reservations.length; i++) {
-                let currentStart = new Date(reservations[i].start_time + "Z");
-                let currentEnd = new Date(reservations[i].end_time + "Z");
-
-                console.log(`   Comparing against Reservation ${i + 1}:`);
-                console.log(`   Start: ${currentStart.toISOString()} (UTC)`);
-                console.log(`   End: ${currentEnd.toISOString()} (UTC)`);
-
-                if (startTime.getTime() < currentEnd.getTime() && endTime.getTime() > currentStart.getTime()) {
-                    console.log(`   Overlap detected with Reservation ${i + 1}!`);
-                    hasConflict = true;
-                    break;
-                }
-            }
-
-            if (hasConflict) {
-                let latestEndTime = new Date(reservations[reservations.length - 1].end_time);
-                let nextAvailableSlot = new Date(latestEndTime.getTime() + 1 * 60 * 1000);
-                let formattedNextSlot = nextAvailableSlot.toLocaleString("en-US", { timeZone: "Europe/Prague" });
-
-                console.log(`    Final next available slot (Local Time): ${formattedNextSlot}`);
-                
-                return res.send(`
-                    <html>
-                    <head>
-                        <link rel="stylesheet" type="text/css" href="/style.css">
-                    </head>
-                    <body>
-                        <div class="error-container">
-                            <h1>Quick Booking Failed - Time Slot Taken!</h1>
-                            <p>Sorry, this time is already taken.</p>
-                            <p>The next available slot is:</p>
-                            <p class="suggested-slot"><strong>${formattedNextSlot}</strong></p>
-                            <a href="/quick-reserve" class="back-button">Try Again</a>
-                        </div>
-                    </body>
-                    </html>
-                `);
-            }
-
-            console.log(`No conflicts. Proceeding with quick booking.`);
-
-            db.run(
-                "INSERT INTO reservations (user_name, start_time, end_time) VALUES (?, ?, ?)",
-                [username, formattedStartTime, formattedEndTime],
-                function () {
-                    console.log(`Quick Reservation confirmed: ${username}, ${formattedStartTime} to ${formattedEndTime}`);
-
-                    res.send(`
-                        <html>
-                        <head>
-                            <link rel="stylesheet" type="text/css" href="/style.css">
-                        </head>
-                        <body>
-                            <div class="confirmation-container">
-                                <h1>Quick Booking Successful!</h1>
-                                <p>Your quick reservation is confirmed:</p>
-                                <p><strong>Start:</strong> ${formattedStartTime}</p>
-                                <p><strong>End:</strong> ${formattedEndTime}</p>
-                                <a href="/home" class="back-button">Back to Homepage</a>
-                            </div>
-                        </body>
-                        </html>
-                    `);
-                }
-            );
+    
+    // Compute the end time (local) by adding the duration
+    let endDT = localDT.plus({ minutes: durationMinutes });
+    console.log("⏳ Quick Reservation End Time (Local):", endDT.toString());
+    
+    // Format both start and end times for DB storage.
+    // (We are storing local times directly in this approach.)
+    const formattedStartTime = localDT.toFormat("yyyy-MM-dd HH:mm:ss");
+    const formattedEndTime = endDT.toFormat("yyyy-MM-dd HH:mm:ss");
+    console.log("📌 Formatted Start Time for DB:", formattedStartTime);
+    console.log("📌 Formatted End Time for DB:", formattedEndTime);
+    
+    console.log(`✅ Trying to book from ${formattedStartTime} to ${formattedEndTime} (Local Time)`);
+    
+    // Retrieve all reservations from the DB
+    db.all("SELECT start_time, end_time FROM reservations ORDER BY start_time ASC", (err, reservations) => {
+      if (err) {
+        console.error("❌ Database error:", err.message);
+        return res.status(500).send("Internal Server Error");
+      }
+    
+      console.log("📜 Existing Reservations in Database:");
+      reservations.forEach((r, i) => {
+        console.log(`${i + 1}. Start: ${r.start_time}, End: ${r.end_time}`);
+      });
+    
+      // Convert stored reservations into Luxon DateTime objects in the Europe/Prague zone.
+      let reservationsLocal = reservations.map(r => ({
+        start: DateTime.fromFormat(r.start_time, "yyyy-MM-dd HH:mm:ss", { zone: "Europe/Prague" }),
+        end: DateTime.fromFormat(r.end_time, "yyyy-MM-dd HH:mm:ss", { zone: "Europe/Prague" })
+      }));
+    
+      let hasConflict = false;
+      console.log("⚖ Checking for conflicts...");
+      // Check if our new quick reservation overlaps any existing one.
+      for (let i = 0; i < reservationsLocal.length; i++) {
+        console.log(`   🔍 Comparing against Reservation ${i + 1}:`);
+        console.log(`   🔹 Start: ${reservationsLocal[i].start.toISO()} (Local)`);
+        console.log(`   🔹 End: ${reservationsLocal[i].end.toISO()} (Local)`);
+        if (localDT < reservationsLocal[i].end && endDT > reservationsLocal[i].start) {
+          console.log(`   ❌ Overlap detected with Reservation ${i + 1}!`);
+          hasConflict = true;
+          break;
         }
-    );
-});
-
-
+      }
+    
+      if (hasConflict) {
+        // For conflict resolution, let's assume we want to return the next available slot.
+        // Here we choose the maximum "end" among all reservations that conflict, and add one second.
+        let latestEnd = reservationsLocal.reduce((max, r) => r.end > max ? r.end : max, localDT);
+        let nextAvailable = latestEnd.plus({ seconds: 1 });
+        let formattedNextSlot = nextAvailable.toFormat("dd/MM/yyyy, HH:mm:ss");
+        console.log(`🚦 Final next available slot (Local): ${formattedNextSlot}`);
+    
+        return res.send(`
+          <html>
+            <head>
+              <link rel="stylesheet" type="text/css" href="/style.css">
+            </head>
+            <body>
+              <div class="error-container">
+                <h1>Quick Booking Failed - Time Slot Taken!</h1>
+                <p>Sorry, this time is already taken.</p>
+                <p>The next available slot is:</p>
+                <p class="suggested-slot"><strong>${formattedNextSlot}</strong></p>
+                <a href="/quick-reserve" class="back-button">Try Again</a>
+              </div>
+            </body>
+          </html>
+        `);
+      }
+    
+      console.log("✅ No conflicts. Proceeding with quick booking.");
+    
+      db.run(
+        "INSERT INTO reservations (user_name, start_time, end_time) VALUES (?, ?, ?)",
+        [username, formattedStartTime, formattedEndTime],
+        function () {
+          console.log(`✅ Quick Reservation confirmed: ${username}, ${formattedStartTime} to ${formattedEndTime}`);
+    
+          res.send(`
+            <html>
+              <head>
+                <link rel="stylesheet" type="text/css" href="/style.css">
+              </head>
+              <body>
+                <div class="confirmation-container">
+                  <h1>Quick Booking Successful!</h1>
+                  <p>Your quick reservation is confirmed:</p>
+                  <p><strong>Start:</strong> ${formattedStartTime}</p>
+                  <p><strong>End:</strong> ${formattedEndTime}</p>
+                  <a href="/home" class="back-button">Back to Homepage</a>
+                </div>
+              </body>
+            </html>
+          `);
+        }
+      );
+    });
+  });
+  
 
 app.post("/reserve", (req, res) => {
-    console.log("🔵 Received Reservation Request:", req.body);
-
     const username = req.cookies.username || "Guest";
-
     if (!req.body.start_time) {
-        console.error("Error: Invalid start time provided.");
-        return res.status(400).send("Invalid start time provided.");
+      return res.status(400).send("Invalid start time provided.");
     }
-
-    const startTime = new Date(req.body.start_time);
-    if (isNaN(startTime.getTime())) {
-        console.error("Error: Invalid start time format.");
-        return res.status(400).send("Invalid start time format.");
+  
+    // 1. Parse the user input as a local time in Europe/Prague.
+    // (Assumes the input format is "yyyy-MM-dd HH:mm:ss")
+    let localDT = DateTime.fromFormat(req.body.start_time, "yyyy-MM-dd HH:mm:ss", { zone: "Europe/Prague" });
+    if (!localDT.isValid) {
+      return res.status(400).send("Invalid start time format.");
     }
-
+    console.log("Local DateTime (from frontend):", localDT.toString());
+  
+    // 2. Compute the end time (using the provided duration in minutes)
     const durationMinutes = parseInt(req.body.duration, 10) || 60;
-    const endTime = new Date(startTime.getTime() + durationMinutes * 60 * 1000);
-
-    const formattedStartTime = startTime.toISOString().slice(0, 19).replace("T", " ");
-    const formattedEndTime = endTime.toISOString().slice(0, 19).replace("T", " ");
-
-    console.log(`Trying to book from ${formattedStartTime} (UTC) to ${formattedEndTime} (UTC)`);
-
-    db.all(
-        "SELECT start_time, end_time FROM reservations ORDER BY start_time ASC",
-        (err, reservations) => {
-            if (err) {
-                console.error("Database error:", err.message);
-                return res.status(500).send("Internal Server Error");
-            }
-
-            console.log("Existing Reservations in Database:");
-            if (reservations.length === 0) {
-                console.log("No existing reservations. Proceeding with booking.");
-            } else {
-                reservations.forEach((r, i) => {
-                    console.log(`${i + 1}. Start: ${r.start_time} (DB Time), End: ${r.end_time} (DB Time)`);
-                });
-            }
-
-            let hasConflict = false;
-
-            console.log(" Checking for conflicts...");
-            for (let i = 0; i < reservations.length; i++) {
-                let currentStart = new Date(reservations[i].start_time + "Z"); // Ensure UTC parsing
-                let currentEnd = new Date(reservations[i].end_time + "Z");
-            
-                console.log(`   Comparing against Reservation ${i + 1}:`);
-                console.log(`   Start: ${currentStart.toISOString()} (UTC)`);
-                console.log(`   End: ${currentEnd.toISOString()} (UTC)`);
-            
-                // **Updated Overlap Check**
-                if (startTime.getTime() < currentEnd.getTime() && endTime.getTime() > currentStart.getTime()) {
-                    console.log(`   Overlap detected with Reservation ${i + 1}!`);
-                    hasConflict = true;
-                    break;
-                }
-            }
-
-            if (hasConflict) {
-                let latestEndTime = new Date(reservations[reservations.length - 1].end_time);
-                let nextAvailableSlot = new Date(latestEndTime.getTime() + 1 * 60 * 1000);
-                let formattedNextSlot = nextAvailableSlot.toLocaleString("en-US", { timeZone: "Europe/Prague" });
-
-                console.log(`    Final next available slot (Local Time): ${formattedNextSlot}`);
-
-                return res.send(`
-                    <html>
-                    <head>
-                        <link rel="stylesheet" type="text/css" href="/style.css">
-                    </head>
-                    <body>
-                        <div class="error-container">
-                            <h1>Time Slot Already Booked!</h1>
-                            <p>Sorry, this time is already taken.</p>
-                            <p>The next available slot is:</p>
-                            <p class="suggested-slot"><strong>${formattedNextSlot}</strong></p>
-                            <a href="/reserve" class="back-button">Try Again</a>
-                        </div>
-                    </body>
-                    </html>
-                `);
-            }
-
-            console.log(`No conflicts. Proceeding with booking.`);
-
-            db.run(
-                "INSERT INTO reservations (user_name, start_time, end_time) VALUES (?, ?, ?)",
-                [username, formattedStartTime, formattedEndTime],
-                function () {
-                    console.log(`Reservation confirmed: ${username}, ${formattedStartTime} to ${formattedEndTime}`);
-
-                    res.send(`
-                        <html>
-                        <head>
-                            <link rel="stylesheet" type="text/css" href="/style.css">
-                        </head>
-                        <body>
-                            <div class="confirmation-container">
-                                <h1>Booking Successful!</h1>
-                                <p>Your reservation is confirmed:</p>
-                                <p><strong>Start:</strong> ${formattedStartTime}</p>
-                                <p><strong>End:</strong> ${formattedEndTime}</p>
-                                <a href="/home" class="back-button">Back to Homepage</a>
-                            </div>
-                        </body>
-                        </html>
-                    `);
-                }
-            );
+    let endDT = localDT.plus({ minutes: durationMinutes });
+    console.log("Local End DateTime:", endDT.toString());
+  
+    // 3. Format the times for storage (we'll store them as local strings)
+    const formattedStartTime = localDT.toFormat("yyyy-MM-dd HH:mm:ss");
+    const formattedEndTime = endDT.toFormat("yyyy-MM-dd HH:mm:ss");
+    console.log("Formatted Start Time for DB:", formattedStartTime);
+    console.log("Formatted End Time for DB:", formattedEndTime);
+  
+    // 4. Retrieve all reservations and parse them as local time.
+    db.all("SELECT user_name, start_time, end_time FROM reservations ORDER BY start_time ASC", (err, reservations) => {
+      if (err) return res.status(500).send("Internal Server Error");
+  
+      let reservationsLocal = reservations.map(r => ({
+        start: DateTime.fromFormat(r.start_time, "yyyy-MM-dd HH:mm:ss", { zone: "Europe/Prague" }),
+        end: DateTime.fromFormat(r.end_time, "yyyy-MM-dd HH:mm:ss", { zone: "Europe/Prague" })
+      }));
+  
+      // 5. Check for conflict: does the new time overlap any existing reservation?
+      let hasConflict = false;
+      for (let r of reservationsLocal) {
+        if (localDT < r.end && endDT > r.start) {
+          hasConflict = true;
+          break;
         }
-    );
-});
+      }
+  
+      if (hasConflict) {
+        // For simplicity, if there's a conflict, use the end time of the conflicting reservation.
+        // (You might want to pick the maximum end time among conflicting reservations.)
+        let latestEnd = reservationsLocal.reduce((max, r) => (r.end > max ? r.end : max), localDT);
+        // Add 1 second to get the next available slot.
+        let nextAvailable = latestEnd.plus({ seconds: 1 });
+        let formattedNextSlot = nextAvailable.toFormat("dd/MM/yyyy, HH:mm:ss");
+        console.log("Next available slot (Local):", formattedNextSlot);
+        return res.send(`
+          <html>
+            <head>
+              <link rel="stylesheet" type="text/css" href="/style.css">
+            </head>
+            <body>
+              <div class="error-container">
+                <h1>Time Slot Already Booked!</h1>
+                <p>Sorry, this time is already taken.</p>
+                <p>The next available slot is:</p>
+                <p class="suggested-slot"><strong>${formattedNextSlot}</strong></p>
+                <a href="/reserve" class="back-button">Try Again</a>
+              </div>
+            </body>
+          </html>
+        `);
+      }
+  
+      // 6. No conflict—proceed with booking.
+      db.run(
+        "INSERT INTO reservations (user_name, start_time, end_time) VALUES (?, ?, ?)",
+        [username, formattedStartTime, formattedEndTime],
+        function () {
+          console.log(`Reservation confirmed: ${username}, ${formattedStartTime} to ${formattedEndTime}`);
+          res.send(`
+            <html>
+              <head>
+                <link rel="stylesheet" type="text/css" href="/style.css">
+              </head>
+              <body>
+                <div class="confirmation-container">
+                  <h1>Booking Successful!</h1>
+                  <p>Your reservation is confirmed:</p>
+                  <p><strong>Start:</strong> ${formattedStartTime}</p>
+                  <p><strong>End:</strong> ${formattedEndTime}</p>
+                  <a href="/home" class="back-button">Back to Homepage</a>
+                </div>
+              </body>
+            </html>
+          `);
+        }
+      );
+    });
+  });
 
 
 
@@ -602,7 +430,7 @@ app.use((req, res) => {
         <body>
             <div class="error-container">
                 <h1>404 - Page Not Found</h1>
-                <p>Oops! The page you are looking for does not exist.</p>
+                <p>Whoops. The page you are looking for does not exist.</p>
                 <a href="/home" class="back-button">Return to Homepage</a>
             </div>
         </body>
@@ -610,23 +438,22 @@ app.use((req, res) => {
     `);
 });
 
-app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on http://0.0.0.0:${PORT}`);
     db.all("SELECT * FROM reservations", (err, rows) => {
-        if (err) {
-            console.error("Error fetching reservations:", err.message);
+      if (err) {
+        console.error("Error fetching reservations:", err.message);
+      } else {
+        console.log("Current Reservations:");
+        if (rows.length === 0) {
+          console.log("No reservations found.");
         } else {
-            console.log("Current Reservations:");
-            if (rows.length === 0) {
-                console.log("No reservations found.");
-            } else {
-                rows.forEach((reservation) => {
-                    console.log(
-                        `ID: ${reservation.id}, User: ${reservation.user_id}, Start: ${reservation.start_time}, End: ${reservation.end_time}`
-                    );
-                });
-            }
+          rows.forEach((reservation) => {
+            console.log(
+              `ID: ${reservation.id}, User: ${reservation.user_id}, Start: ${reservation.start_time}, End: ${reservation.end_time}`
+            );
+          });
         }
+      }
     });
-});
-
+  });
